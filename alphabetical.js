@@ -18,9 +18,14 @@ BoxLayout:
     Label:
         id: 'question'
         hints: {h:0.3}
+    Result:
+        hints: {h:0.2}
+        id: 'result'
+        state: 'unanswered'
     BoxLayout:
         orientation: 'horizontal'
         hints: {h:0.2}
+        id: 'answerOptions'
         AnswerButton:
             id: 'answer1'
         AnswerButton:
@@ -29,10 +34,6 @@ BoxLayout:
             id: 'answer3'
         AnswerButton:
             id: 'answer4'
-    Result:
-        hints: {h:0.2}
-        id: 'result'
-        state: 'unanswered'
 `
 
 
@@ -68,7 +69,6 @@ class AnswerButton extends eskv.Button {
         if(Alphabetical.get().currentQuestion===10) {
             Alphabetical.get().setupGame();
         } else if(result.state==='unanswered') {
-            this.bgColor = this.selectColor;
             Alphabetical.get().processAnswer(this.text);
         } 
     }
@@ -125,6 +125,7 @@ class Alphabetical extends eskv.App {
     currentQuestion = -1;
     alphabet = ['a','b','c','d','e','f','g','h','i','j','k','l','m',
                 'n','o','p','q','r','s','t','u','v','w','x','y','z'];
+    startTime = 0;
     constructor(props={}) {
         super();
         this.baseWidget.addChild(parse(markup)[0]);
@@ -161,6 +162,7 @@ class Alphabetical extends eskv.App {
         this.questions = questions;
         this.currentQuestion = -1;
         this.correctAnswers = 0;
+        this.startTime = Date.now();
         this.next();
     }
     next() {
@@ -187,7 +189,9 @@ class Alphabetical extends eskv.App {
             window.app.findById('result').state = 'unanswered';
         } else {
             this.currentQuestion++;
-            window.app.findById('question').text = `Score: ${this.correctAnswers}/10`;
+            const time = Date.now() - this.startTime - 30000;
+            const displayTime = Math.floor(time*10/1000)/10;
+            window.app.findById('question').text = `Score: ${this.correctAnswers}/10, Time: ${displayTime}s`;
             window.app.findById('answer1').text = '*';
             window.app.findById('answer2').text = '*';
             window.app.findById('answer3').text = '*';
@@ -197,6 +201,14 @@ class Alphabetical extends eskv.App {
             window.app.findById('answer3').bgColor = 'rgba(128,128,100,1)';
             window.app.findById('answer4').bgColor = 'rgba(128,128,100,1)';
             window.app.findById('result').state = 'unanswered';
+            const gameCount = JSON.parse(window.localStorage.getItem('Alphabetical/alphabet/gameCount')??'0');
+            window.localStorage.setItem('Alphabetical/alphabet/gameCount', JSON.stringify(gameCount+1));
+            window.localStorage.setItem(`Alphabetical/alphabet/game${gameCount}`, 
+                JSON.stringify({
+                    score: this.correctAnswers,
+                    time: time,
+                })
+            );
         }
         this.requestFrameUpdate();
     }
@@ -212,6 +224,10 @@ class Alphabetical extends eskv.App {
         } else {
             result.state = 'incorrect';
         }
+        const answerOptions = this.findById('answerOptions')?.children.slice();
+        //@ts-ignore
+        const w = answerOptions.find((w)=>w.text===this.answers[this.currentQuestion]);
+        if(w instanceof AnswerButton) w.bgColor = w.selectColor;
         setTimeout(() => {
             this.next()
         }, 3000);
